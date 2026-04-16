@@ -1,3 +1,13 @@
+---
+title: PneumoDetect AI
+emoji: 🫁
+colorFrom: blue
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # PneumoDetect AI — Démo soutenance
 
 Application web de détection de pneumonie sur radiographies thoraciques.  
