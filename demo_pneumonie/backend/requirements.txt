@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+tensorflow
+numpy
+pillow
+opencv-python-headless
+scikit-image
+matplotlib
+huggingface_hub

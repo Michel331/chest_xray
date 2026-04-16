@@ -1,0 +1,36 @@
+# Modèles (trop lourds pour Git — héberger sur HF Hub)
+*.keras
+*.h5
+*.pb
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+venv/
+env/
+.venv/
+
+# TensorFlow / Keras
+saved_model/
+*.ckpt*
+*.tflite
+
+# Data (images patient)
+data/demo_cases/*.jpg
+data/demo_cases/*.jpeg
+data/demo_cases/*.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

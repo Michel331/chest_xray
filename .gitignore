@@ -1,0 +1,27 @@
+# Modele
+*.keras
+*.h5
+
+# Donnees d'entrainement
+train/
+train_balanced/
+train_gan_augmented/
+val/
+test/
+archive/
+
+# MacOs Artefact
+__MACOSX/
+.DS_Store
+
+# python
+
+__pycache__/
+*.pyc
+.env
+venv/
+
+# cache jupiter
+
+.ipynb_checkpoints/
+

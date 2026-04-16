@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__stitch__create_project",
+      "mcp__stitch__generate_screen_from_text",
+      "mcp__stitch__list_screens",
+      "WebFetch(domain:contribution.usercontent.google.com)",
+      "Bash(mkdir -p /Users/michael/Downloads/chest_xray/demo_pneumonie/backend)",
+      "Bash(mkdir -p /Users/michael/Downloads/chest_xray/demo_pneumonie/frontend)",
+      "Bash(mkdir -p /Users/michael/Downloads/chest_xray/demo_pneumonie/data/demo_cases)",
+      "Bash(ls -lh /Users/michael/Downloads/chest_xray/*.keras)",
+      "Bash(ls -lh /Users/michael/Downloads/chest_xray/demo_pneumonie/*.keras)",
+      "Bash(python -c \"import fastapi, uvicorn, tensorflow, cv2, skimage, PIL\")",
+      "Bash(python3 -c \"import fastapi, uvicorn, tensorflow, cv2, skimage, PIL\")",
+      "Bash(pip3 --version)",
+      "Bash(conda info *)",
+      "Bash(/opt/anaconda3/envs/Project/bin/python *)",
+      "Bash(/opt/anaconda3/bin/python *)"
+    ]
+  }
+}
