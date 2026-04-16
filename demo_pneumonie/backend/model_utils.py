@@ -65,9 +65,11 @@ def load_model() -> tf.keras.Model:
     if repo_id:
         print(f"[model] Téléchargement depuis HF Hub : {repo_id}")
         from huggingface_hub import hf_hub_download
+        hf_token = os.environ.get("HF_TOKEN")
         hf_path = hf_hub_download(
             repo_id=repo_id,
-            filename="modele_pneumonie_densenet.keras",
+            filename="modele_pneumonie_densenet_balanced.keras",
+            token=hf_token,
         )
         return tf.keras.models.load_model(hf_path, compile=False)
 
