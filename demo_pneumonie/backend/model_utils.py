@@ -81,33 +81,22 @@ def load_model() -> tf.keras.Model:
 
 # ─── Grad-CAM ─────────────────────────────────────────────────────────────────
 
-def build_gradcam_model(model: tf.keras.Model) -> tf.keras.Model:
+def build_gradcam_model(model: tf.keras.Model) -> tuple:
     """
-    Construit un modèle fonctionnel qui retourne simultanément :
-      - la sortie de la dernière Conv2D de DenseNet121
-      - les prédictions finales (softmax)
+    Retourne (conv_model, head_model) pour Grad-CAM.
 
-    Cela permet un GradientTape correct (un seul forward pass).
+    - conv_model : input (224,224,3) → features conv (H, W, C)
+    - head_model : features conv → prédictions finales
+
+    Séparer les deux modèles permet d'utiliser tape.watch(conv_out)
+    avant le calcul de preds, garantissant des gradients non-None
+    en Keras 2 et Keras 3.
     """
-    # Trouver le sous-modèle DenseNet121
     densenet = next(
         (l for l in model.layers if isinstance(l, tf.keras.Model)), None
     )
 
     if densenet is not None:
-        # Dernière Conv2D dans DenseNet
-        last_conv_name = [
-            l.name for l in densenet.layers
-            if isinstance(l, tf.keras.layers.Conv2D)
-        ][-1]
-        last_conv_layer = densenet.get_layer(last_conv_name)
-
-        # Sous-modèle : densenet.input → [last_conv.output, densenet.output]
-        dn_grad = tf.keras.Model(
-            inputs=densenet.input,
-            outputs=[last_conv_layer.output, densenet.output],
-        )
-
         # Couches de la tête (après DenseNet dans le modèle principal)
         head_layers = []
         after = False
@@ -118,41 +107,69 @@ def build_gradcam_model(model: tf.keras.Model) -> tf.keras.Model:
             if after:
                 head_layers.append(layer)
 
-        # Modèle combiné : input → [conv_out, preds_finales]
-        inp = tf.keras.Input(shape=(224, 224, 3))
-        conv_out, dn_out = dn_grad(inp)
-        x = dn_out
+        # conv_model : input → densenet output (dernières features conv)
+        conv_inp = tf.keras.Input(shape=(224, 224, 3), name="gradcam_input")
+        conv_out = densenet(conv_inp)
+        conv_model = tf.keras.Model(inputs=conv_inp, outputs=conv_out,
+                                    name="gradcam_conv")
+
+        # head_model : features conv → prédictions
+        conv_shape = conv_model.output_shape[1:]
+        head_inp = tf.keras.Input(shape=conv_shape, name="gradcam_head_input")
+        x = head_inp
         for layer in head_layers:
             x = layer(x)
+        head_model = tf.keras.Model(inputs=head_inp, outputs=x,
+                                    name="gradcam_head")
 
-        return tf.keras.Model(inputs=inp, outputs=[conv_out, x])
+        return conv_model, head_model
 
-    # Fallback : modèle sans sous-modèle imbriqué
+    # Fallback : modèle plat (pas de sous-modèle imbriqué)
     last_conv_name = [
         l.name for l in model.layers
         if isinstance(l, tf.keras.layers.Conv2D)
     ][-1]
-    return tf.keras.Model(
-        inputs=model.inputs,
-        outputs=[model.get_layer(last_conv_name).output, model.output],
+    last_conv_idx = next(
+        i for i, l in enumerate(model.layers) if l.name == last_conv_name
     )
+
+    conv_model = tf.keras.Model(
+        inputs=model.inputs,
+        outputs=model.get_layer(last_conv_name).output,
+        name="gradcam_conv_flat",
+    )
+    conv_shape = conv_model.output_shape[1:]
+    head_inp = tf.keras.Input(shape=conv_shape, name="gradcam_head_input_flat")
+    x = head_inp
+    for layer in model.layers[last_conv_idx + 1:]:
+        x = layer(x)
+    head_model = tf.keras.Model(inputs=head_inp, outputs=x,
+                                name="gradcam_head_flat")
+
+    return conv_model, head_model
 
 
 def make_gradcam_heatmap(
     img_tensor: np.ndarray,
-    grad_model: tf.keras.Model,
+    grad_model: tuple,
     pred_index: int | None = None,
 ) -> tuple[np.ndarray, int]:
     """
     Calcule la heatmap Grad-CAM.
+
+    grad_model : tuple (conv_model, head_model) retourné par build_gradcam_model
 
     Retourne
     --------
     heatmap : np.ndarray, shape (H, W), float32, valeurs dans [0, 1]
     pred_index : int  (classe utilisée pour les gradients)
     """
+    conv_model, head_model = grad_model
+
     with tf.GradientTape() as tape:
-        conv_outputs, preds = grad_model(img_tensor, training=False)
+        conv_outputs = conv_model(img_tensor, training=False)
+        tape.watch(conv_outputs)          # watch explicite avant le calcul de preds
+        preds = head_model(conv_outputs, training=False)
         if pred_index is None:
             pred_index = int(tf.argmax(preds[0]))
         class_channel = preds[:, pred_index]
