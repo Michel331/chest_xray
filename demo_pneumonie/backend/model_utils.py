@@ -217,7 +217,24 @@ def create_gradcam_overlay(orig_gray: np.ndarray, heatmap: np.ndarray) -> np.nda
     return superimposed
 
 
-# ─── MC Dropout ───────────────────────────────────────────────────────────────
+# ─── Prédiction déterministe ──────────────────────────────────────────────────
+
+def predict_deterministic(
+    model: tf.keras.Model,
+    img_tensor: np.ndarray,
+) -> np.ndarray:
+    """
+    Une seule passe forward avec Dropout désactivé (training=False).
+    Résultat reproductible : même entrée → même sortie.
+
+    Retourne
+    --------
+    pred : np.ndarray (1, num_classes)
+    """
+    return model(img_tensor, training=False).numpy()
+
+
+# ─── MC Dropout (pour estimation d'incertitude épistémique) ───────────────────
 
 def mc_predict(
     model: tf.keras.Model,

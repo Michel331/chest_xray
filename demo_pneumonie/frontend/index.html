@@ -24,6 +24,88 @@
     /* Barre de progression animée */
     .bar-fill { transition: width 0.6s ease-out; }
 
+    /* Shimmer pour jauge en attente d'incertitude */
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .shimmer-bar {
+      background: linear-gradient(
+        90deg,
+        rgba(71, 85, 105, 0.4) 0%,
+        rgba(148, 163, 184, 0.7) 50%,
+        rgba(71, 85, 105, 0.4) 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.6s linear infinite;
+    }
+    /* Pulse doux du texte "Calcul…" */
+    @keyframes softPulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 1; }
+    }
+    .soft-pulse { animation: softPulse 1.6s ease-in-out infinite; }
+
+    /* Pastille info + tooltip au hover */
+    .info-dot {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: #334155;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 700;
+      font-style: italic;
+      font-family: Georgia, serif;
+      cursor: help;
+      transition: background 0.2s, color 0.2s;
+    }
+    .info-dot:hover { background: #475569; color: #e2e8f0; }
+    .info-tooltip {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #cbd5e1;
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 400;
+      font-style: normal;
+      opacity: 0;
+      pointer-events: none;
+      transform-origin: top center;
+      transform: translateX(-50%) translateY(-4px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 50;
+      box-shadow: 0 10px 24px -8px rgba(0,0,0,0.6);
+    }
+    .info-tooltip::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-bottom-color: #334155;
+    }
+    .info-dot:hover .info-tooltip,
+    .info-dot:focus .info-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     /* Drop zone hover */
     .drop-zone.drag-over {
       border-color: #3b82f6;
@@ -60,7 +142,12 @@
     <!-- ── Colonne gauche : Upload ────────────────────────────────────── -->
     <div class="flex flex-col gap-4">
       <div class="bg-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-        <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide">Charger une radio</h2>
+        <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide flex items-center">
+          Charger une radio
+          <span class="info-dot" tabindex="0" aria-label="Aide">i
+            <span class="info-tooltip">Déposez une radiographie thoracique, ou cliquez pour parcourir vos fichiers. L'image est automatiquement préparée avant l'analyse.</span>
+          </span>
+        </h2>
 
         <!-- Drop zone -->
         <div
@@ -77,34 +164,25 @@
         </div>
         <input id="file-input" type="file" accept="image/jpeg,image/png" class="hidden" />
 
-        <!-- Zone de recadrage -->
+        <!-- Zone d'aperçu / recadrage -->
         <div id="crop-container" class="flex flex-col gap-2" style="display:none;">
-          <div class="relative bg-slate-900 rounded-lg overflow-hidden" style="height:220px;">
-            <img id="crop-img" src="" alt="" style="display:block; max-width:100%;" />
+          <div class="relative bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center" style="height:220px;">
+            <img id="crop-img" src="" alt="" style="display:block; max-width:100%; max-height:100%;" />
           </div>
           <div class="flex items-center justify-between">
-            <p class="text-xs text-slate-500">Cadrez sur le thorax</p>
+            <button
+              id="crop-toggle-btn"
+              type="button"
+              onclick="toggleCrop()"
+              class="text-xs text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+              Recadrer
+            </button>
             <button
               onclick="document.getElementById('file-input').click()"
               class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
             >Changer d'image</button>
-          </div>
-        </div>
-
-        <!-- Slider précision -->
-        <div>
-          <label class="text-xs text-slate-400 flex justify-between mb-1">
-            <span>Précision de l'analyse</span>
-            <span id="mc-value" class="font-mono text-blue-400">30</span>
-          </label>
-          <input
-            id="mc-slider"
-            type="range" min="10" max="50" value="30" step="5"
-            class="w-full accent-blue-500 cursor-pointer"
-            oninput="document.getElementById('mc-value').textContent = this.value"
-          />
-          <div class="flex justify-between text-xs text-slate-600 mt-0.5">
-            <span>Rapide</span><span>Approfondie</span>
           </div>
         </div>
 
@@ -124,7 +202,12 @@
 
     <!-- ── Colonne centre : Visualisation ─────────────────────────────── -->
     <div class="bg-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-3">
-      <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide">Analyse visuelle</h2>
+      <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide flex items-center">
+        Analyse visuelle
+        <span class="info-dot" tabindex="0" aria-label="Aide">i
+          <span class="info-tooltip">Carte de chaleur affichant les régions qui ont pesé dans la décision. <b>Rouge et jaune = zones les plus influentes</b>. Permet de vérifier que l'analyse s'est bien concentrée sur les poumons.</span>
+        </span>
+      </h2>
 
       <!-- Onglets Original / Grad-CAM -->
       <div class="flex gap-1 bg-slate-900 rounded-lg p-1">
@@ -166,7 +249,12 @@
 
     <!-- ── Colonne droite : Résultats ─────────────────────────────────── -->
     <div class="bg-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-      <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide">Résultat</h2>
+      <h2 class="font-semibold text-slate-200 text-sm uppercase tracking-wide flex items-center">
+        Résultat
+        <span class="info-dot" tabindex="0" aria-label="Aide">i
+          <span class="info-tooltip"><b>Diagnostic</b> : conclusion de l'analyse et son niveau de confiance.<br><b>Fiabilité</b> : plus la jauge est remplie, moins l'analyse est sûre — un second avis est alors recommandé.</span>
+        </span>
+      </h2>
 
       <!-- Placeholder -->
       <div id="result-placeholder" class="flex-1 flex flex-col items-center justify-center text-slate-600 gap-2">
@@ -285,17 +373,42 @@
       currentFile = file;
       const reader = new FileReader();
       reader.onload = e => {
-        // Détruire le cropper précédent
+        // Détruire un éventuel cropper précédent
         if (cropper) { cropper.destroy(); cropper = null; }
 
-        // Afficher la zone de recadrage, cacher le drop zone
+        // Afficher l'aperçu, cacher le drop zone
         document.getElementById('drop-zone').style.display = 'none';
         document.getElementById('crop-container').style.display = 'flex';
 
         const img = document.getElementById('crop-img');
         img.src = e.target.result;
+        originalImageDataUrl = e.target.result;
 
-        // Initialiser Cropper.js
+        // Réinitialiser l'état du bouton "Recadrer"
+        const cropBtn = document.getElementById('crop-toggle-btn');
+        cropBtn.classList.remove('text-blue-400');
+        cropBtn.classList.add('text-slate-400');
+
+        // Activer le bouton Analyser
+        const btn = document.getElementById('analyze-btn');
+        btn.disabled = false;
+        btn.className = 'w-full py-3 rounded-lg font-semibold text-sm transition-all bg-blue-600 hover:bg-blue-500 text-white cursor-pointer';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ── Recadrage optionnel ──────────────────────────────────────────────
+    function toggleCrop() {
+      const img = document.getElementById('crop-img');
+      const cropBtn = document.getElementById('crop-toggle-btn');
+      if (cropper) {
+        // Désactiver le recadrage
+        cropper.destroy();
+        cropper = null;
+        cropBtn.classList.remove('text-blue-400');
+        cropBtn.classList.add('text-slate-400');
+      } else {
+        // Activer le recadrage
         cropper = new Cropper(img, {
           viewMode: 1,
           aspectRatio: NaN,
@@ -308,14 +421,9 @@
           zoomable: false,
           highlight: false,
         });
-
-        // Activer le bouton Analyser
-        const btn = document.getElementById('analyze-btn');
-        btn.disabled = false;
-        btn.className = `w-full py-3 rounded-lg font-semibold text-sm transition-all
-                         bg-blue-600 hover:bg-blue-500 text-white cursor-pointer`;
-      };
-      reader.readAsDataURL(file);
+        cropBtn.classList.remove('text-slate-400');
+        cropBtn.classList.add('text-blue-400');
+      }
     }
 
     // ── Tabs ─────────────────────────────────────────────────────────────
@@ -338,35 +446,58 @@
       }
     }
 
-    // ── Analyse ───────────────────────────────────────────────────────────
+    // ── Analyse (progressive : prédiction rapide, puis incertitude) ──────
     async function analyzeImage() {
-      if (!cropper) return;
+      if (!currentFile) return;
 
-      const nMc = document.getElementById('mc-slider').value;
       setLoadingState(true);
       resetResults();
 
-      // Récupérer l'image recadrée
-      const canvas = cropper.getCroppedCanvas({ imageSmoothingQuality: 'high' });
-      originalImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      // Récupérer le blob à envoyer : recadré si cropper actif, sinon fichier original
+      let blob;
+      if (cropper) {
+        const canvas = cropper.getCroppedCanvas({ imageSmoothingQuality: 'high' });
+        originalImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
+      } else {
+        blob = currentFile;
+      }
 
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
+      // ─── 1ʳᵉ phase : prédiction déterministe + Grad-CAM (rapide) ──────
       const formData = new FormData();
       formData.append('file', blob, 'radio.jpg');
-      formData.append('n_mc', nMc);
 
+      let predData;
       try {
         const res = await fetch(`${API}/analyze`, { method: 'POST', body: formData });
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.detail || `Erreur ${res.status}`);
         }
-        const data = await res.json();
-        displayResults(data);
+        predData = await res.json();
+        displayPrediction(predData);
       } catch (err) {
         showError(err.message);
-      } finally {
         setLoadingState(false);
+        return;
+      }
+      setLoadingState(false);
+
+      // ─── 2ᵉ phase : incertitude MC Dropout (lent, en arrière-plan) ────
+      setUncertaintyLoading(true);
+      const uncertaintyForm = new FormData();
+      uncertaintyForm.append('file', blob, 'radio.jpg');
+
+      try {
+        const res = await fetch(`${API}/uncertainty`, { method: 'POST', body: uncertaintyForm });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || `Erreur ${res.status}`);
+        }
+        const uData = await res.json();
+        displayUncertainty(uData);
+      } catch (err) {
+        setUncertaintyError(err.message);
       }
     }
 
@@ -378,6 +509,7 @@
       if (loading) {
         btn.disabled = true;
         btn.textContent = 'Analyse…';
+        btn.className = 'w-full py-3 rounded-lg font-semibold text-sm transition-all bg-slate-700 text-slate-400 cursor-wait';
         spinner.classList.remove('hidden');
         spinner.classList.add('flex');
         placeholder.classList.add('hidden');
@@ -385,16 +517,11 @@
         document.getElementById('img-original').classList.add('hidden');
         document.getElementById('gradcam-caption').classList.add('hidden');
       } else {
-        btn.disabled = false;
         btn.textContent = 'Analyser';
-        btn.className = 'w-full py-3 rounded-lg font-semibold text-sm transition-all bg-blue-600 hover:bg-blue-500 text-white cursor-pointer';
         spinner.classList.add('hidden');
         spinner.classList.remove('flex');
-        // S'assurer que le panneau de recadrage reste visible après l'analyse
-        if (cropper) {
-          document.getElementById('drop-zone').style.display = 'none';
-          document.getElementById('crop-container').style.display = 'flex';
-        }
+        // L'état final du bouton et de la zone d'upload est géré par
+        // resetUploadZone() (appelé par displayPrediction).
       }
     }
 
@@ -408,17 +535,36 @@
       });
     }
 
-    function displayResults(data) {
-      const pred = data.prediction;
-      const unc  = data.uncertainty;
+    // ── Reset de la zone d'upload (permet un nouvel upload immédiat) ────
+    function resetUploadZone() {
+      if (cropper) { cropper.destroy(); cropper = null; }
+      currentFile = null;
+      document.getElementById('crop-container').style.display = 'none';
+      document.getElementById('drop-zone').style.display = '';
+      document.getElementById('crop-img').src = '';
 
-      // ── Images ──────────────────────────────────────────────────────
+      const cropBtn = document.getElementById('crop-toggle-btn');
+      if (cropBtn) {
+        cropBtn.classList.remove('text-blue-400');
+        cropBtn.classList.add('text-slate-400');
+      }
+
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = true;
+      btn.textContent = 'Analyser';
+      btn.className = 'w-full py-3 rounded-lg font-semibold text-sm transition-all bg-slate-700 text-slate-500 cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500';
+    }
+
+    // ── Phase 1 : prédiction + Grad-CAM (rapide) ────────────────────────
+    function displayPrediction(data) {
+      const pred = data.prediction;
+
+      // Images
       const iGrad = document.getElementById('img-gradcam');
       const iOrig = document.getElementById('img-original');
       iGrad.src = data.images.gradcam;
-      iOrig.src = originalImageDataUrl;  // image uploadée, non modifiée
+      iOrig.src = originalImageDataUrl;
 
-      // Afficher selon l'onglet actif
       document.getElementById('img-placeholder').classList.add('hidden');
       if (currentTab === 'gradcam') {
         iGrad.classList.remove('hidden'); iOrig.classList.add('hidden');
@@ -427,10 +573,9 @@
       }
       document.getElementById('gradcam-caption').classList.remove('hidden');
 
-      // ── ① Carte de diagnostic ────────────────────────────────────────
+      // Carte de diagnostic
       const isPneumo = pred.class === 'PNEUMONIE';
       const confPct  = (pred.probabilities[pred.class] * 100).toFixed(1);
-
       const card = document.getElementById('diagnosis-card');
       card.className = isPneumo
         ? 'rounded-lg border-l-4 border-red-500 bg-red-950/30 p-4 flex items-center justify-between'
@@ -442,17 +587,52 @@
       document.getElementById('result-confidence').textContent = `${confPct} %`;
       document.getElementById('result-confidence').className   = `text-3xl font-black tabular-nums ${isPneumo ? 'text-red-300' : 'text-emerald-300'}`;
 
+      document.getElementById('result-placeholder').classList.add('hidden');
+      document.getElementById('result-content').classList.remove('hidden');
+      document.getElementById('result-content').classList.add('flex');
 
-      // ── Badge fiabilité ──────────────────────────────────────────────
+      // Libérer la zone d'upload pour une nouvelle radio
+      resetUploadZone();
+    }
+
+    // ── Phase 2 : chargement de la fiabilité ────────────────────────────
+    function setUncertaintyLoading(loading) {
       const badge = document.getElementById('uncertainty-badge');
-      const lvl   = unc.level;
-      // ── ③ Feux tricolores ────────────────────────────────────────────
+      const uBar  = document.getElementById('uncertainty-bar');
+      if (loading) {
+        // Feux tricolores neutralisés pendant le calcul
+        ['light-low', 'light-medium', 'light-high'].forEach(id => {
+          document.getElementById(id).className = 'w-3.5 h-3.5 rounded-full bg-slate-700 transition-all duration-300';
+        });
+        badge.textContent = 'Calcul de fiabilité…';
+        badge.className   = 'text-xs font-medium text-slate-400 soft-pulse';
+        // Jauge remplie à 100% avec un gradient shimmer animé
+        uBar.className  = 'h-2 rounded-full shimmer-bar';
+        uBar.style.width = '100%';
+        uBar.style.opacity = '1';
+      }
+    }
+
+    function setUncertaintyError(msg) {
+      const badge = document.getElementById('uncertainty-badge');
+      badge.textContent = 'Fiabilité indisponible';
+      badge.className   = 'text-xs font-medium text-slate-500';
+      const uBar = document.getElementById('uncertainty-bar');
+      uBar.style.width = '0%';
+    }
+
+    function displayUncertainty(data) {
+      setUncertaintyLoading(false);
+      const unc = data.uncertainty;
+      const badge = document.getElementById('uncertainty-badge');
+
       const lightConfig = {
-        low:    { label: 'Analyse fiable',      active: 'light-low',    color: 'bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.5)]',  barCls: 'bg-emerald-500' },
-        medium: { label: 'Prudence conseillée', active: 'light-medium', color: 'bg-orange-400 shadow-[0_0_8px_2px_rgba(251,146,60,0.5)]',   barCls: 'bg-orange-400'  },
-        high:   { label: 'Résultat incertain',  active: 'light-high',   color: 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.5)]',       barCls: 'bg-red-500'     },
+        low:    { label: 'Analyse fiable',      active: 'light-low',    color: 'bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.5)]', barCls: 'bg-emerald-500' },
+        medium: { label: 'Prudence conseillée', active: 'light-medium', color: 'bg-orange-400 shadow-[0_0_8px_2px_rgba(251,146,60,0.5)]',  barCls: 'bg-orange-400'  },
+        high:   { label: 'Résultat incertain',  active: 'light-high',   color: 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.5)]',      barCls: 'bg-red-500'     },
       };
-      const lc = lightConfig[lvl] || lightConfig.low;
+      const lc = lightConfig[unc.level] || lightConfig.low;
+
       ['light-low', 'light-medium', 'light-high'].forEach(id => {
         document.getElementById(id).className = 'w-3.5 h-3.5 rounded-full bg-slate-700 transition-all duration-300';
       });
@@ -460,8 +640,6 @@
       badge.textContent = lc.label;
       badge.className   = 'text-xs font-medium text-slate-300';
 
-      // Barre d'incertitude MC — plus remplie = plus incertain
-      // low [0–5%] → barre 0–25% | medium [5–12%] → 25–70% | high [>12%] → 70–100%
       function stdToBar(v) {
         if (v <= 0.05) return (v / 0.05) * 25;
         if (v <= 0.12) return 25 + ((v - 0.05) / 0.07) * 45;
@@ -469,12 +647,11 @@
       }
       const uBar = document.getElementById('uncertainty-bar');
       uBar.className = `bar-fill h-2 rounded-full ${lc.barCls}`;
-      setTimeout(() => { uBar.style.width = `${Math.round(stdToBar(unc.value))}%`; }, 50);
+      uBar.style.width = `${Math.round(stdToBar(unc.value))}%`;
 
-      // ── Flag clinique ────────────────────────────────────────────────
+      // Flag clinique
       const flagContainer = document.getElementById('flag-container');
       const flagBox       = document.getElementById('flag-box');
-      // ── ④ Recommandation clinique ────────────────────────────────────
       const svgWarning = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
       const svgInfo    = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
 
@@ -491,11 +668,6 @@
       } else {
         flagContainer.classList.add('hidden');
       }
-
-      // ── Afficher le contenu ──────────────────────────────────────────
-      document.getElementById('result-placeholder').classList.add('hidden');
-      document.getElementById('result-content').classList.remove('hidden');
-      document.getElementById('result-content').classList.add('flex');
     }
 
     function showError(message) {
